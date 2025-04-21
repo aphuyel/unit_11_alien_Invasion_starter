@@ -1,89 +1,109 @@
 import pygame
+import sys
+from pygame.sprite import Group
 from settings import Settings
-from game_stats import GameStats
 from ship import Ship
+from alien import Alien
+from bullet import Bullet
 from arsenal import Arsenal
-from alien_fleet import AlienFleet
-from time import sleep
+from button import Button
+from game_stats import GameStats
+from hud import HUD
 
-class AlienInvasion:
+class AlienInvasion:  
     def __init__(self):
         pygame.init()
         self.settings = Settings()
-        self.stats = GameStats(self.settings.starting_ship_count)
         self.screen = pygame.display.set_mode(
-            (self.settings.screen_w, self.settings.screen_h))
+            (self.settings.screen_w, self.settings.screen_h)
+        )
         pygame.display.set_caption(self.settings.name)
 
-        self.bg_image = pygame.image.load(self.settings.bg_file)
-        self.bg_image = pygame.transform.scale(self.bg_image,
-                                                (self.settings.screen_w, self.settings.screen_h))
-
+        # Initialize game components
+        self.game_stats = GameStats(self)
+        self.hud = HUD(self)
+        
+        # Create Arsenal instance
         self.arsenal = Arsenal(self)
+        
+        # Create Ship instance and pass Arsenal
         self.ship = Ship(self, self.arsenal)
-        self.alien_fleet = AlienFleet(self)
-
+        
+        # Create a group for aliens and bullets
+        self.aliens = Group()
+        self.bullets = Group()
+        
+        # Create Play button
+        self.button = Button(self, "Play")
+        
+        # Create the alien fleet
+        self._create_fleet()
+        
+        # Initialize the game clock
         self.clock = pygame.time.Clock()
 
+    def _create_fleet(self):
+        """Create a fleet of aliens."""
+        alien = Alien(self, x=100, y=100)  # Example position for the first alien
+        self.aliens.add(alien)
+        
+        # You can create a grid of aliens if you want:
+        # Here’s an example of creating a simple grid of aliens:
+        for row in range(3):
+            for col in range(5):
+                x = 100 + col * 80  # Adjust x to space aliens horizontally
+                y = 100 + row * 60  # Adjust y to space aliens vertically
+                alien = Alien(self, x=x, y=y)
+                self.aliens.add(alien)
+
     def run_game(self):
-        """Start the main game loop."""
+        """Start the main loop for the game."""
         while True:
             self._check_events()
-
             self.ship.update()
-            self.alien_fleet.update()
-
-            # Check for collisions
-            self.check_collisions()
-
+            self.arsenal.update_arsenal()  # Update the bullets' positions
+            self._update_screen()
             self._update_screen()
             self.clock.tick(self.settings.FPS)
 
     def _check_events(self):
-        """Handle user input."""
+        """Check for keyboard and mouse events."""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 quit()
-            self.ship.handle_event(event)
-
-    def check_collisions(self):
-        """Check for bullet-alien and ship-alien collisions."""
-        # Check for collisions between bullets and aliens
-        collisions = pygame.sprite.groupcollide(self.arsenal.arsenal, self.alien_fleet.fleet, True, True)
-
-        if collisions:
-            print(f"Collisions: {collisions}")  # Debugging: prints the collisions
-
-        # Check if the ship collides with any alien
-        if pygame.sprite.spritecollideany(self.ship, self.alien_fleet.fleet):
-            print("Ship hit!")
-            self._handle_ship_hit()
-
-    def _handle_ship_hit(self):
-        """Respond to the ship being hit by an alien."""
-        print("Handling ship hit...")
-        self.stats.ships_left -= 1
-
-        if self.stats.ships_left <= 0:
-            self.game_active = False
-        else:
-            self.ship.rect.centerx = self.screen.get_rect().centerx
-            self.ship.rect.bottom = self.screen.get_rect().bottom
-
-            self.arsenal.arsenal.empty()
-            self.alien_fleet.reset_fleet()
-
-            sleep(0.5)
+            elif event.type == pygame.KEYDOWN:
+                self.ship.handle_event(event)
+            elif event.type == pygame.KEYUP:
+                self.ship.handle_event(event)
 
     def _update_screen(self):
-        """Update the screen and draw all game elements."""
-        self.screen.blit(self.bg_image, (0, 0))
+        """Update the screen and draw everything."""
+        self.screen.fill(self.settings.bg_color)
+        
+        # Draw all the sprites (including the ship and aliens)
+        self.ship.update()
+        self.ship.draw()
+        
+        # Draw aliens
+        for alien in self.aliens:
+            alien.draw()
+        
+        # Draw the HUD (score, level, lives)
+        self.hud.draw()
+        
+        # Draw the play button if the game is inactive
+        if not self.game_stats.game_active:
+            self.button.draw()
+            self.screen.fill(self.settings.bg_color)
         self.ship.draw()
         self.arsenal.draw()
-        self.alien_fleet.draw()
-        pygame.display.flip()
-
+        pygame.display.flip()     
+    def _check_collisions(self):
+         collisions = pygame.sprite.groupcollide(self.arsenal.bullets, self.aliens, True, True)
+         if collisions:
+            for aliens in collisions.values():
+                self.game_stats.score += 10 
 if __name__ == '__main__':
     ai = AlienInvasion()
     ai.run_game()

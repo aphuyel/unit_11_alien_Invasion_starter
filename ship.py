@@ -12,12 +12,14 @@ class Ship:
         self.screen = game.screen
         self.screen_rect = self.screen.get_rect()
 
+        # Load the ship image and scale it
         self.image = pygame.image.load(self.settings.ship_file)
         self.image = pygame.transform.scale(self.image, 
              (self.settings.ship_w, self.settings.ship_h)
              )
         self.rect = self.image.get_rect()
 
+        # Set the ship's initial position
         self.rect.centerx = self.screen_rect.centerx
         self.rect.bottom = self.screen_rect.bottom
 
@@ -26,6 +28,8 @@ class Ship:
         self.moving_down = False
         self.moving_left = False
         self.moving_right = False
+
+        # Initialize Arsenal (now using the passed arsenal argument)
         self.arsenal = arsenal
 
     def update(self) -> None:
@@ -34,6 +38,7 @@ class Ship:
         self.arsenal.update_arsenal()
 
     def _update_ship_movement(self):
+        """Update the ship's position based on key presses."""
         if self.moving_up and self.rect.top > 0:
             self.rect.y -= self.settings.ship_speed
         if self.moving_down and self.rect.bottom < self.screen_rect.bottom:
@@ -72,8 +77,10 @@ class Ship:
                 self.moving_right = False
 
     def fire(self) -> None:
-        if self.arsenal.fire_bullet():
-            print("Firing bullet...")  # Debugging
-            sound = pygame.mixer.Sound(str(self.settings.laser_sound))
-            sound.set_volume(0.5)
-            sound.play()
+        """Fire a bullet if possible."""
+        if self.arsenal.bullet_count > 0:  # Check if ammo is available
+            if self.arsenal.fire_bullet(self.game):  # Pass the game instance here
+               print("Firing bullet...")  # Debugging message
+               self.fire_sound.play()
+            else:
+                print("Out of ammo!")
